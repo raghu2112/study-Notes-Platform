@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Neural Glitch: Error {{ code }}{% endblock %}
+{% block content %}
+<div style="min-height: 70vh; display: flex; align-items: center; justify-content: center; flex-direction: column; text-align: center; padding: 40px; position: relative;">
+  <!-- Glitch Readout -->
+  <div style="font-family: 'Space Grotesk'; font-size: 10rem; font-weight: 900;
+              background: linear-gradient(180deg, var(--primary) 0%, transparent 80%);
+              -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+              opacity: 0.1; line-height: 1; margin-bottom: -40px; user-select: none; letter-spacing: -5px;">
+    {{ code }}
+  </div>
+
+  <div class="glass" style="padding: 40px; max-width: 500px; border-radius: 30px; border-color: {{ '#ff4d4d' if code >= 500 else 'var(--primary)' }};">
+    <!-- Icon -->
+    <div style="font-size: 4rem; margin-bottom: 25px;">
+      {{ '🔒' if code==403 else ('🔍' if code==404 else '⚠️') }}
+    </div>
+
+    <!-- Title -->
+    <h2 style="font-size: 1.8rem; margin-bottom: 12px; color: #fff; font-family: 'Space Grotesk'; font-weight: 800; text-transform: uppercase; letter-spacing: 2px;">
+      {{ 'Link Blocked' if code==403 else ('Segment Not Found' if code==404 else 'Systemic Failure') }}
+    </h2>
+
+    <!-- Message -->
+    <p style="color: var(--txt-dim); font-size: 1rem; line-height: 1.6; margin-bottom: 35px;">
+      {{ msg }}
+    </p>
+
+    <!-- Actions -->
+    <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+      <a href="{{ url_for('index') }}" class="btn btn-p" style="padding: 12px 25px;">RETURN TO CORE</a>
+      <a href="javascript:history.back()" class="btn btn-s" style="padding: 12px 25px;">PREVIOUS STATE</a>
+    </div>
+  </div>
+
+  <!-- System Log -->
+  <div style="margin-top: 50px; padding: 15px 25px; border: 1px solid rgba(255,255,255,0.05); border-radius: 12px;
+              max-width: 400px; font-family: monospace; color: var(--txt-dim); font-size: 0.75rem; background: rgba(0,0,0,0.2);">
+    <span style="color: var(--primary);">[ LOG ]</span> Error detected at coordinates {{ code }}. <br>Initializing recovery vectors... 100% complete.
+  </div>
+</div>
+{% endblock %}
+

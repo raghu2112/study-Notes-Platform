@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Filtered: {{ tag }}{% endblock %}
+{% block content %}
+
+<div class="pg-hdr" style="margin-bottom: 30px;">
+  <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+    <a href="{{ url_for('notes') }}" class="btn btn-s" style="padding: 5px 15px; font-size: 0.75rem;">← BACK TO
+      REPOSITORY</a>
+  </div>
+  <h1
+    style="background: linear-gradient(90deg, #fff, var(--primary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+    Neural Tag: {{ tag }}
+  </h1>
+  <p style="color: var(--txt-dim);">{{ notes|length }} cognitive modules isolated with this data identifier.</p>
+</div>
+
+<!-- Tag Header Card -->
+<div class="glass"
+  style="padding: 25px 30px; margin-bottom: 40px; border-left: 4px solid var(--primary); 
+                         display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px;">
+  <div style="display: flex; align-items: center; gap: 20px;">
+    <span style="font-size: 2.2rem; opacity: 0.8;">🏷️</span>
+    <div>
+      <div style="font-family: 'Space Grotesk'; font-size: 1.4rem; font-weight: 800; color: #fff; letter-spacing: 1px;">
+        {{ tag }}
+      </div>
+      <div style="font-size: 0.75rem; color: var(--txt-dim); text-transform: uppercase; letter-spacing: 1px;">Neural
+        Index Filter</div>
+    </div>
+  </div>
+  <a href="{{ url_for('notes', q=tag) }}" class="btn btn-p" style="padding: 8px 20px; font-size: 0.8rem;">
+    🔍 FULL SCAN: "{{ tag }}"
+  </a>
+</div>
+
+<div class="notes-g">
+  {% for n in notes %}
+  {% set ext = n.file_type or 'txt' %}
+  {% set nc_colors = {'pdf':'#ff4d4d','doc':'#00f2ff','docx':'#00f2ff',
+  'txt':'#00ff88','ppt':'#fde047','pptx':'#fde047'} %}
+  <a class="nc" href="{{ url_for('note_detail', note_id=n.id) }}"
+    style="--sc-c:{{ nc_colors.get(ext, 'var(--primary)') }};">
+    <div class="nc-bod">
+      <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
+        <span style="color: {{ nc_colors.get(ext, 'var(--primary)') }}; font-weight: 800; font-size: 0.7rem; 
+                     text-transform: uppercase; border: 1px solid currentColor; padding: 2px 8px; border-radius: 4px;">
+          {{ ext.upper() }}
+        </span>
+        <div class="stars sm" style="opacity: 0.8;">
+          {% for i in range(1,6) %}
+          <span class="star {% if i <= n.avg_rating|round|int %}on{% endif %}">★</span>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="nc-tit" style="margin-bottom: 10px;">{{ n.title }}</div>
+      <div style="color: var(--txt-dim); font-size: 0.85rem; line-height: 1.5; margin-bottom: 15px; 
+                  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+        {{ n.description or 'No decryptable summary.' }}
+      </div>
+
+      {% if n.tags %}
+      <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px;">
+        {% for t in n.tags.split(',')[:3] %}
+        <span style="font-size: 0.65rem; color: {{ 'var(--primary)' if t.strip().lower()==tag.lower() else 'var(--txt-dim)' }}; 
+                     background: {{ 'rgba(0,242,255,0.1)' if t.strip().lower()==tag.lower() else 'rgba(255,255,255,0.02)' }};
+                     border: 1px solid {{ 'var(--primary)' if t.strip().lower()==tag.lower() else 'rgba(255,255,255,0.1)' }};
+                     padding: 2px 8px; border-radius: 4px;">{{ t.strip() }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    <div class="nc-ft">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <div class="av" style="width: 22px; height: 22px; font-size: 0.6rem;">{{ n.author_name[:2].upper() }}</div>
+        <span style="font-size: 0.75rem; color: var(--txt-dim);">{{ n.author_name }}</span>
+      </div>
+      <div style="display: flex; gap: 10px; font-size: 0.75rem; color: var(--txt-dim);">
+        <span>👁 {{ n.views }}</span>
+        <span>❤️ {{ n.likes }}</span>
+      </div>
+    </div>
+  </a>
+  {% else %}
+  <div style="grid-column: 1/-1">
+    <div class="glass" style="text-align: center; padding: 80px 20px;">
+      <div style="font-size: 4rem; margin-bottom: 25px; opacity: 0.1;">🏷️</div>
+      <h3 style="margin-bottom: 12px;">Zero Matching Segments</h3>
+      <p style="color: var(--txt-dim); margin-bottom: 30px;">Be the first to initialize a data module with the "{{ tag
+        }}" sync identifier.</p>
+      <a href="{{ url_for('upload') }}" class="btn btn-p">Initialize Uplink</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,325 @@
+{% extends "base.html" %}
+{% block title %}Neural Core: Control Panel{% endblock %}
+{% block content %}
+
+<div class="pg-hdr" style="margin-bottom: 40px;">
+  <h1
+    style="background: linear-gradient(90deg, #fff, var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+    Neural Core: Control Panel
+  </h1>
+  <p style="color: var(--txt-dim);">Platform telemetry, neural link management, and data moderation.</p>
+</div>
+
+<!-- Stats Row -->
+<div class="stats-g" style="grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); margin-bottom: 40px;">
+  {% for val, lbl, icon, color in [
+  (stats.users, 'Nodes', '👥', 'var(--primary)'),
+  (stats.notes, 'Modules', '💾', 'var(--secondary)'),
+  (stats.comments, 'Pulses', '💬', 'var(--accent)'),
+  (stats.blocked, 'Isolated', '🚫', 'var(--danger)'),
+  (stats.downloads, 'Transfers', '⬇️', 'var(--success)'),
+  (stats.views, 'Traffic', '👁', 'var(--primary)'),
+  (stats.ratings, 'Valuation', '⭐', 'var(--accent)'),
+  (stats.likes, 'Resonance', '❤️', 'var(--danger)')
+  ] %}
+  <div class="sc" style="--sc-c: {{ color }}; padding: 15px;">
+    <div style="font-size: 1.2rem; margin-bottom: 8px;">{{ icon }}</div>
+    <div class="s-val" style="font-size: 1.4rem;">{{ val }}</div>
+    <div class="s-lbl" style="font-size: 0.65rem;">{{ lbl }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+{% if stats.blocked > 0 %}
+<div class="glass" style="display: flex; align-items: center; gap: 15px; padding: 15px 25px; 
+                         border-left: 4px solid var(--danger); margin-bottom: 30px; background: rgba(255,77,77,0.05);">
+  <span style="font-size: 1.5rem;">⚠️</span>
+  <span style="color: #ff4d4d; font-weight: 600; font-size: 0.9rem;">
+    CORE ALERT: <strong>{{ stats.blocked }}</strong> Nodes currently isolated. Review integrity below.
+  </span>
+</div>
+{% endif %}
+
+<!-- ── Overview Row ── -->
+<div class="two-col mb4" style="grid-template-columns: 1fr 1fr;">
+
+  <!-- Activity Console -->
+  <div class="card glass">
+    <div class="c-hdr">
+      <span class="c-tit" style="display: flex; align-items: center; gap: 10px;">
+        <span class="pulse" style="width: 8px; height: 8px; background: var(--primary); border-radius: 50%;"></span>
+        Real-time Feed
+      </span>
+    </div>
+    <div style="padding: 0; max-height: 400px; overflow-y: auto;">
+      {% for act in activity %}
+      <div
+        style="display: flex; align-items: flex-start; gap: 15px; padding: 15px 20px; border-bottom: 1px solid rgba(255,255,255,0.05); transition: var(--t);"
+        onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
+        <div
+          style="width: 35px; height: 35px; border-radius: 8px; flex-shrink: 0;
+                    display: flex; align-items: center; justify-content: center; font-size: 1rem;
+                    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); color: var(--primary);">
+          {{ '📤' if act.type=='upload' else '💬' }}
+        </div>
+        <div style="flex: 1; min-width: 0;">
+          <div style="font-size: 0.85rem; color: var(--txt-m);">
+            <strong style="color: #fff;">{{ act.actor }}</strong>
+            <span style="color: var(--txt-dim);">{{ 'uploaded' if act.type=='upload' else 'transmitted to' }}</span>
+            <a href="{{ url_for('note_detail', note_id=act.note_id) }}"
+              style="color: var(--primary); font-weight: 700; text-decoration: none;">
+              {{ act.target[:40] }}{% if act.target|length > 40 %}...{% endif %}
+            </a>
+          </div>
+          <div style="font-size: 0.7rem; color: var(--txt-dim); margin-top: 5px; font-family: 'Space Grotesk';">{{
+            act.created_at|timeago }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Subject Integrity -->
+  <div style="display: flex; flex-direction: column; gap: 30px;">
+    <div class="card glass">
+      <div class="c-hdr"><span class="c-tit">Repository Allocation</span></div>
+      <div style="padding: 25px;">
+        {% if subject_stats %}
+        {% set max_cnt = subject_stats[0].cnt %}
+        {% for s in subject_stats %}
+        <div style="margin-bottom: 20px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+            <span style="font-size: 0.85rem; font-weight: 700; color: #fff;">{{ s.subject }}</span>
+            <span style="font-size: 0.75rem; color: var(--txt-dim);">{{ s.cnt }} MODULES | {{ s.total_views }}
+              UNITS</span>
+          </div>
+          <div style="height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden;">
+            <div style="height: 100%; width: {{ (s.cnt / max_cnt * 100)|int }}%; 
+                        background: var(--primary); box-shadow: 0 0 10px var(--primary-glow);
+                        transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);"></div>
+          </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Leaders -->
+    <div class="card glass">
+      <div class="c-hdr"><span class="c-tit">Top Node Contributors</span></div>
+      <div style="padding: 0;">
+        {% for c in top_contributors %}
+        <div
+          style="display: flex; align-items: center; gap: 15px; padding: 12px 20px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+          <div
+            style="font-family: 'Space Grotesk'; font-size: 1.1rem; font-weight: 800; color: {{ 'var(--accent)' if loop.index<=3 else 'var(--txt-dim)' }}; width: 20px;">
+            {{ loop.index }}
+          </div>
+          <div class="av" style="width: 30px; height: 30px; font-size: 0.7rem;">{{ c.name[:2].upper() }}</div>
+          <div style="flex: 1; min-width: 0;">
+            <div
+              style="font-weight: 700; font-size: 0.9rem; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+              <a href="{{ url_for('profile', user_id=c.id) }}" style="color: inherit; text-decoration: none;">{{ c.name
+                }}</a>
+            </div>
+            <div style="font-size: 0.7rem; color: var(--txt-dim);">{{ c.note_count }} Modules · {{ c.total_views }}
+              Units</div>
+          </div>
+          <span style="font-size: 0.8rem; font-weight: 800; color: #fff;">{{ c.total_likes }} ❤️</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Tabs ── -->
+<div style="display: flex; gap: 10px; margin-bottom: 25px;">
+  <button class="nav-a act" id="btn-users" onclick="switchTab('users')"
+    style="padding: 10px 25px; border-radius: 8px; font-weight: 700; border: none; cursor: pointer;">
+    👥 Nodes ({{ users|length }})
+  </button>
+  <button class="nav-a" id="btn-notes" onclick="switchTab('notes')"
+    style="padding: 10px 25px; border-radius: 8px; font-weight: 700; border: none; cursor: pointer;">
+    💾 Modules ({{ all_notes|length }})
+  </button>
+</div>
+
+<style>
+  .nav-a.act {
+    background: var(--primary);
+    color: #000 !important;
+    box-shadow: 0 0 15px var(--primary-glow);
+  }
+</style>
+
+<!-- USERS TAB -->
+<div class="tab-pane on" id="tab-users">
+  <div class="card glass">
+    <div class="c-hdr">
+      <span class="c-tit">Node Management Matrix</span>
+      <input type="text" style="max-width: 250px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); 
+                                 padding: 8px 15px; border-radius: 8px; color: #fff; font-size: 0.8rem;"
+        placeholder="🔍 Scan nodes..." oninput="filterTable('userTbl',this.value)" />
+    </div>
+    <div style="overflow-x: auto;">
+      <table class="tbl" id="userTbl">
+        <thead>
+          <tr>
+            <th>NODE ID</th>
+            <th>CLEARANCE</th>
+            <th>MODULES</th>
+            <th>LOGIN</th>
+            <th>STATUS</th>
+            <th>ACTIONS</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in users %}
+          <tr>
+            <td>
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <div class="av"
+                  style="background: {{ 'var(--accent)' if u.role=='admin' else 'var(--primary)' }}; color: #000;">
+                  {{ u.name[:2].upper() }}
+                </div>
+                <div>
+                  <div style="font-weight: 700; color: #fff;">
+                    <a href="{{ url_for('profile', user_id=u.id) }}" style="color: inherit; text-decoration: none;">{{
+                      u.name }}</a>
+                  </div>
+                  <div style="font-size: 0.7rem; color: var(--txt-dim);">{{ u.email }}</div>
+                </div>
+              </div>
+            </td>
+            <td>
+              <span style="font-size: 0.65rem; font-weight: 800; text-transform: uppercase; padding: 4px 10px; border-radius: 4px;
+                            background: {{ 'rgba(250,204,21,0.1)' if u.role=='admin' else 'rgba(0,242,255,0.1)' }}; 
+                            color: {{ 'var(--accent)' if u.role=='admin' else 'var(--primary)' }};">
+                {{ u.role }}
+              </span>
+            </td>
+            <td style="font-family: 'Space Grotesk';">{{ u.note_count }}</td>
+            <td style="font-size: 0.75rem; color: var(--txt-dim);">{{ u.created_at[:10] }}</td>
+            <td>
+              <span style="font-size: 0.65rem; font-weight: 800; text-transform: uppercase; padding: 4px 10px; border-radius: 4px;
+                           background: {{ 'rgba(255,77,77,0.1)' if u.is_blocked else 'rgba(0,255,136,0.1)' }}; 
+                           color: {{ '#ff4d4d' if u.is_blocked else '#00ff88' }};">
+                {{ 'ISOLATED' if u.is_blocked else 'ACTIVE' }}
+              </span>
+            </td>
+            <td>
+              {% if u.role != 'admin' %}
+              <div style="display: flex; gap: 8px;">
+                <form method="post" action="{{ url_for('block_user', user_id=u.id) }}">
+                  <button type="submit" class="btn btn-s"
+                    style="padding: 5px 12px; font-size: 0.7rem; {{ 'border-color: #00ff88; color: #00ff88;' if u.is_blocked else 'border-color: #ff4d4d; color: #ff4d4d;' }}">
+                    {{ 'RESTORE' if u.is_blocked else 'ISOLATE' }}
+                  </button>
+                </form>
+                <form method="post" action="{{ url_for('admin_delete_user', user_id=u.id) }}"
+                  onsubmit="return confirm('PURGE NODE PERMANENTLY?')">
+                  <button type="submit" class="btn btn-s"
+                    style="padding: 5px; border-color: #ff4d4d; color: #ff4d4d;">🗑️</button>
+                </form>
+              </div>
+              {% else %}
+              <span style="font-size: 0.7rem; color: var(--txt-dim); font-style: italic;">ADMIN PROTECTED</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- NOTES TAB -->
+<div class="tab-pane" id="tab-notes" style="display: none;">
+  <div class="card glass">
+    <div class="c-hdr">
+      <span class="c-tit">Module Registry Matrix</span>
+      <input type="text" style="max-width: 250px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); 
+                                 padding: 8px 15px; border-radius: 8px; color: #fff; font-size: 0.8rem;"
+        placeholder="🔍 Scan modules..." oninput="filterTable('noteTbl',this.value)" />
+    </div>
+    <div style="overflow-x: auto;">
+      <table class="tbl" id="noteTbl">
+        <thead>
+          <tr>
+            <th>TITLE</th>
+            <th>ORIGIN</th>
+            <th>DATA TYPE</th>
+            <th>TRAFFIC</th>
+            <th>RESONANCE</th>
+            <th>TIMESTAMP</th>
+            <th>ACTIONS</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for n in all_notes %}
+          <tr>
+            <td>
+              <a href="{{ url_for('note_detail', note_id=n.id) }}"
+                style="font-weight: 700; color: var(--primary); text-decoration: none;">
+                {{ n.title[:40] }}{% if n.title|length > 40 %}...{% endif %}
+              </a>
+            </td>
+            <td style="font-size: 0.85rem; color: var(--txt-m);">{{ n.author_name }}</td>
+            <td>
+              <span
+                style="font-size: 0.65rem; font-weight: 800; color: var(--primary); border: 1px solid currentColor; padding: 2px 8px; border-radius: 4px;">
+                {{ (n.file_type or 'txt').upper() }}
+              </span>
+            </td>
+            <td style="font-family: 'Space Grotesk';">{{ n.views }}</td>
+            <td style="font-family: 'Space Grotesk';">{{ n.likes }}</td>
+            <td style="font-size: 0.75rem; color: var(--txt-dim);">{{ n.created_at[:10] }}</td>
+            <td>
+              <div style="display: flex; gap: 8px;">
+                <a href="{{ url_for('note_detail', note_id=n.id) }}" class="btn btn-s" style="padding: 5px;">👁</a>
+                <form method="post" action="{{ url_for('admin_delete_note', note_id=n.id) }}"
+                  onsubmit="return confirm('PURGE MODULE?')">
+                  <button type="submit" class="btn btn-s"
+                    style="padding: 5px; border-color: #ff4d4d; color: #ff4d4d;">🗑️</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+function switchTab(id) {
+const usersTab = document.getElementById('tab-users');
+const notesTab = document.getElementById('tab-notes');
+const usersBtn = document.getElementById('btn-users');
+const notesBtn = document.getElementById('btn-notes');
+
+if (id === 'users') {
+usersTab.style.display = 'block';
+notesTab.style.display = 'none';
+usersBtn.classList.add('act');
+notesBtn.classList.remove('act');
+} else {
+usersTab.style.display = 'none';
+notesTab.style.display = 'block';
+usersBtn.classList.remove('act');
+notesBtn.classList.add('act');
+}
+}
+
+function filterTable(tblId, q) {
+q = q.toLowerCase();
+document.querySelectorAll('#'+tblId+' tbody tr').forEach(r => {
+r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none';
+});
+}
+{% endblock %}
