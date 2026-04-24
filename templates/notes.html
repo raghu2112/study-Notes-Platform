@@ -63,8 +63,8 @@
   {% set nc_colors = {'pdf':'#ef4444','doc':'#3b82f6','docx':'#3b82f6',
                       'txt':'#10b981','ppt':'#f59e0b','pptx':'#f59e0b',
                       'png':'#8b5cf6','jpg':'#8b5cf6'} %}
-  <a class="nc" href="{{ url_for('note_detail', note_id=n.id) }}"
-     style="--sc-c:{{ nc_colors.get(ext, 'var(--clr-primary)') }};">
+  <div class="nc" style="--sc-c:{{ nc_colors.get(ext, 'var(--clr-primary)') }}; cursor: pointer;"
+       onclick="window.location.href='{{ url_for('note_detail', note_id=n.id) }}'">
     <div class="nc-bod">
       <!-- Top row: file type badge + rating -->
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
@@ -123,14 +123,14 @@
         <span title="Likes" style="color: {{ '#ef4444' if n.id in liked_ids else 'inherit' }};">❤️ {{ n.likes }}</span>
         {% if n.filename %}
         <a href="{{ url_for('download_note', note_id=n.id) }}" 
-           onclick="event.stopPropagation(); event.preventDefault(); window.location.href=this.href;"
-           title="Download" style="color: var(--clr-secondary); cursor: pointer; text-decoration: none;">
+           onclick="event.stopPropagation(); return true;"
+           title="Download" style="color: var(--clr-secondary); cursor: pointer; text-decoration: none; pointer-events: auto;">
           ⬇ {{ n.downloads }}
         </a>
         {% endif %}
       </div>
     </div>
-  </a>
+  </div>
   {% else %}
   <!-- Empty State -->
   <div style="grid-column: 1/-1;">
