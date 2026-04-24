@@ -121,6 +121,13 @@
       <div style="display: flex; gap: 12px; font-size: 0.72rem; color: var(--clr-text-soft);">
         <span title="Views">👁 {{ n.views }}</span>
         <span title="Likes" style="color: {{ '#ef4444' if n.id in liked_ids else 'inherit' }};">❤️ {{ n.likes }}</span>
+        {% if n.filename %}
+        <a href="{{ url_for('download_note', note_id=n.id) }}" 
+           onclick="event.stopPropagation(); event.preventDefault(); window.location.href=this.href;"
+           title="Download" style="color: var(--clr-secondary); cursor: pointer; text-decoration: none;">
+          ⬇ {{ n.downloads }}
+        </a>
+        {% endif %}
       </div>
     </div>
   </a>
