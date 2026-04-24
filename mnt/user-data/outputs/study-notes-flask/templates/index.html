@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="pg-hdr">
+  <h1>Dashboard 🏠</h1>
+  <p>Welcome back — here's what's happening on the platform.</p>
+</div>
+<div class="stats-g">
+  <div class="sc bl"><div class="s-ico2">📄</div><div class="s-val">{{ stats.notes }}</div><div class="s-lbl">Total Notes</div></div>
+  <div class="sc gr"><div class="s-ico2">👥</div><div class="s-val">{{ stats.users }}</div><div class="s-lbl">Active Students</div></div>
+  <div class="sc ye"><div class="s-ico2">💬</div><div class="s-val">{{ stats.comments }}</div><div class="s-lbl">Comments</div></div>
+  <div class="sc re"><div class="s-ico2">👁</div><div class="s-val">{{ stats.views }}</div><div class="s-lbl">Total Views</div></div>
+</div>
+<div class="two-col">
+  <div>
+    <div class="s-hdr">
+      <span class="s-tit">🕐 Recently Added</span>
+      <a href="{{ url_for('notes') }}" class="btn btn-s btn-sm">View all →</a>
+    </div>
+    <div class="notes-g">
+      {% for n in recent %}
+      {% set ext = n.file_type or 'txt' %}
+      {% set colors = {'pdf':'#e24','doc':'#4f8dff','docx':'#4f8dff','txt':'#06d6a0','ppt':'#ffd166','pptx':'#ffd166'} %}
+      {% set col = colors.get(ext,'#7a8ab0') %}
+      <a class="nc" href="{{ url_for('note_detail', note_id=n.id) }}">
+        <div class="nc-acc" style="background:{{ col }}"></div>
+        <div class="nc-bod">
+          <span class="fbadge b{{ ext[:1] }}">{{ ext|fileicon }} {{ ext.upper() }}</span>
+          <div class="nc-tit">{{ n.title }}</div>
+          <div class="nc-des">{{ n.description or 'No description provided.' }}</div>
+        </div>
+        <div class="nc-ft">
+          <div class="n-auth">
+            <div class="av" style="width:21px;height:21px;font-size:.56rem">{{ n.author_name[:2].upper() }}</div>
+            <span class="n-auth-n">{{ n.author_name }}</span>
+          </div>
+          <div class="n-meta">
+            <span class="mi">👁 {{ n.views }}</span>
+            <span class="mi">❤️ {{ n.likes }}</span>
+          </div>
+        </div>
+      </a>
+      {% else %}
+      <div style="grid-column:1/-1"><div class="empt"><div class="ei">📭</div><h3>No notes yet</h3><p>Be the first to upload a study note!</p><a href="{{ url_for('upload') }}" class="btn btn-p">Upload Now</a></div></div>
+      {% endfor %}
+    </div>
+  </div>
+  <div>
+    <div class="card mb3">
+      <div class="c-hdr"><span class="c-tit">🔥 Trending</span></div>
+      <div class="c-bod" style="padding:10px">
+        <div class="tr-l">
+          {% for n in trending %}
+          <a class="tr-i" href="{{ url_for('note_detail', note_id=n.id) }}">
+            <span class="tr-rk {% if loop.index<=3 %}top{% endif %}">{{ loop.index }}</span>
+            <div class="tr-inf">
+              <div class="tr-tit">{{ n.title }}</div>
+              <div class="tr-sub">{{ n.subject or 'General' }} · {{ n.created_at|timeago }}</div>
+            </div>
+            <span class="tr-lk">❤️ {{ n.likes }}</span>
+          </a>
+          {% else %}<p class="t-d ts" style="padding:10px">No trending notes yet.</p>{% endfor %}
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="c-hdr"><span class="c-tit">⚡ Quick Actions</span></div>
+      <div class="c-bod" style="display:flex;flex-direction:column;gap:9px">
+        <a href="{{ url_for('upload') }}" class="btn btn-p btn-fw">📤 Upload Note</a>
+        <a href="{{ url_for('notes') }}" class="btn btn-s btn-fw">📄 Browse All Notes</a>
+        <a href="{{ url_for('bookmarks') }}" class="btn btn-s btn-fw">🔖 My Bookmarks</a>
+        <a href="{{ url_for('profile') }}" class="btn btn-s btn-fw">👤 My Profile</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
