@@ -139,11 +139,13 @@ def run():
         if ex:
             note_ids.append(ex['id'])
             continue
+        # Generate filename from title
+        filename = n['title'].lower().replace(' ', '_').replace('&', 'and')[:50] + f".{n['file_type']}"
         cur.execute(
-            "INSERT INTO notes (user_id,title,subject,description,tags,file_type,file_size,"
-            "views,likes,downloads,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO notes (user_id,title,subject,description,tags,filename,file_type,file_size,"
+            "views,likes,downloads,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
             (n['user_id'], n['title'], n['subject'], n['description'], n['tags'],
-             n['file_type'], n['file_size'], n['views'], n['likes'], n['downloads'],
+             filename, n['file_type'], n['file_size'], n['views'], n['likes'], n['downloads'],
              ts(n['days_ago']))
         )
         note_ids.append(cur.lastrowid)

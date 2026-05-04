@@ -53,11 +53,16 @@
         </p>
       </div>
 
-      <!-- Edit Button -->
+      <!-- Edit & Logout Buttons -->
       {% if current_user and current_user.id == profile_user.id %}
-      <a href="{{ url_for('edit_profile') }}" class="btn btn-s btn-sm" style="border-radius: 10px; flex-shrink: 0; margin-bottom: 6px;">
-        ✏️ Edit Profile
-      </a>
+      <div style="display: flex; gap: 10px; flex-shrink: 0; margin-bottom: 6px;">
+        <a href="{{ url_for('edit_profile') }}" class="btn btn-s btn-sm" style="border-radius: 10px;">
+          ✏️ Edit Profile
+        </a>
+        <a href="{{ url_for('logout') }}" class="btn btn-sm" style="border-radius: 10px; background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444; text-decoration: none;">
+          🚪 Logout
+        </a>
+      </div>
       {% endif %}
     </div>
 

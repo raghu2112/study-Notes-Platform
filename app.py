@@ -522,6 +522,18 @@ def download_note(note_id):
 
 
 # ─────────────────────────────────────────────
+#  HELPER — detect AJAX requests
+# ─────────────────────────────────────────────
+def _is_ajax():
+    """Return True when the request is an AJAX / fetch call."""
+    return (
+        request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        or request.content_type == 'application/json'
+        or request.accept_mimetypes.best == 'application/json'
+    )
+
+
+# ─────────────────────────────────────────────
 #  ROUTES — INTERACTIONS (AJAX + Forms)
 # ─────────────────────────────────────────────
 
@@ -548,7 +560,7 @@ def toggle_like(note_id):
                      f'/note/{note_id}'))
 
     count = query("SELECT likes FROM notes WHERE id=?", (note_id,), one=True)['likes']
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+    if _is_ajax():
         return jsonify({'liked': liked, 'count': count})
     return redirect(url_for('note_detail', note_id=note_id))
 
@@ -556,14 +568,29 @@ def toggle_like(note_id):
 @app.route('/note/<int:note_id>/rate', methods=['POST'])
 @login_required
 def rate_note(note_id):
-    uid   = session['user_id']
-    stars = int(request.form.get('stars', 0))
+    uid = session['user_id']
+    # Accept JSON body or form data
+    if request.is_json:
+        stars = int(request.json.get('stars', 0))
+    else:
+        stars = int(request.form.get('stars', 0))
     if stars not in range(1, 6):
+        if _is_ajax():
+            return jsonify({'error': 'Rating must be between 1 and 5.'}), 400
         flash('Rating must be between 1 and 5.', 'error')
         return redirect(url_for('note_detail', note_id=note_id))
 
     execute("INSERT OR REPLACE INTO ratings (note_id, user_id, stars) VALUES (?,?,?)",
             (note_id, uid, stars))
+
+    avg = query("SELECT COALESCE(AVG(stars),0) as avg, COUNT(*) as cnt FROM ratings WHERE note_id=?",
+                (note_id,), one=True)
+    if _is_ajax():
+        return jsonify({
+            'stars': stars,
+            'avg_rating': round(float(avg['avg']), 1),
+            'rating_count': avg['cnt']
+        })
     flash(f'You rated this note {stars} ★', 'success')
     return redirect(url_for('note_detail', note_id=note_id))
 
@@ -575,27 +602,38 @@ def toggle_bookmark(note_id):
     ex = query("SELECT 1 FROM bookmarks WHERE note_id=? AND user_id=?", (note_id, uid), one=True)
     if ex:
         execute("DELETE FROM bookmarks WHERE note_id=? AND user_id=?", (note_id, uid))
-        msg = 'Bookmark removed.'
+        bookmarked = False
     else:
         execute("INSERT OR IGNORE INTO bookmarks (note_id, user_id) VALUES (?,?)", (note_id, uid))
-        msg = 'Note bookmarked! 🔖'
-    flash(msg, 'success')
+        bookmarked = True
+    if _is_ajax():
+        return jsonify({'bookmarked': bookmarked})
+    flash('Note bookmarked! 🔖' if bookmarked else 'Bookmark removed.', 'success')
     return redirect(url_for('note_detail', note_id=note_id))
 
 
 @app.route('/note/<int:note_id>/comment', methods=['POST'])
 @login_required
 def add_comment(note_id):
-    text = sanitize(request.form.get('text', ''))
+    # Accept JSON body or form data
+    if request.is_json:
+        text = sanitize(request.json.get('text', ''))
+    else:
+        text = sanitize(request.form.get('text', ''))
+
     if len(text) < 2:
+        if _is_ajax():
+            return jsonify({'error': 'Comment cannot be empty.'}), 400
         flash('Comment cannot be empty.', 'error')
         return redirect(url_for('note_detail', note_id=note_id))
     if len(text) > 1000:
+        if _is_ajax():
+            return jsonify({'error': 'Comment too long (max 1000 characters).'}), 400
         flash('Comment too long (max 1000 characters).', 'error')
         return redirect(url_for('note_detail', note_id=note_id))
 
-    execute("INSERT INTO comments (note_id, user_id, text) VALUES (?,?,?)",
-            (note_id, session['user_id'], text))
+    cid = execute("INSERT INTO comments (note_id, user_id, text) VALUES (?,?,?)",
+                  (note_id, session['user_id'], text))
 
     # Notify note author
     note = query("SELECT user_id, title FROM notes WHERE id=?", (note_id,), one=True)
@@ -606,6 +644,19 @@ def add_comment(note_id):
                  f'{user["name"]} commented on your note "{note["title"]}".',
                  f'/note/{note_id}'))
 
+    if _is_ajax():
+        me = query("SELECT name, avatar FROM users WHERE id=?", (session['user_id'],), one=True)
+        total = query("SELECT COUNT(*) as c FROM comments WHERE note_id=? AND is_deleted=0",
+                      (note_id,), one=True)['c']
+        return jsonify({
+            'id': cid,
+            'text': text,
+            'user_name': me['name'],
+            'user_avatar': me['avatar'] or me['name'][:2].upper(),
+            'created_at': 'just now',
+            'can_delete': True,
+            'total_comments': total
+        })
     flash('Comment posted! 💬', 'success')
     return redirect(url_for('note_detail', note_id=note_id))
 
@@ -615,10 +666,18 @@ def add_comment(note_id):
 def delete_comment(comment_id):
     c = query("SELECT * FROM comments WHERE id=?", (comment_id,), one=True)
     if not c:
+        if _is_ajax():
+            return jsonify({'error': 'Comment not found.'}), 404
         abort(404)
     if c['user_id'] != session['user_id'] and session.get('role') != 'admin':
+        if _is_ajax():
+            return jsonify({'error': 'Forbidden.'}), 403
         abort(403)
     execute("UPDATE comments SET is_deleted=1 WHERE id=?", (comment_id,))
+    total = query("SELECT COUNT(*) as c FROM comments WHERE note_id=? AND is_deleted=0",
+                  (c['note_id'],), one=True)['c']
+    if _is_ajax():
+        return jsonify({'deleted': True, 'comment_id': comment_id, 'total_comments': total})
     flash('Comment deleted.', 'success')
     return redirect(url_for('note_detail', note_id=c['note_id']))
 
@@ -773,6 +832,96 @@ def notifications():
     notifs = query("SELECT * FROM notifications WHERE user_id=? ORDER BY created_at DESC LIMIT 50", (uid,))
     execute("UPDATE notifications SET read=1 WHERE user_id=?", (uid,))
     return render_template('notifications.html', notifications=notifs)
+
+
+@app.route('/api/notifications/count')
+@login_required
+def api_notif_count():
+    """AJAX endpoint — return unread notification count."""
+    cnt = query("SELECT COUNT(*) as c FROM notifications WHERE user_id=? AND read=0",
+                (session['user_id'],), one=True)['c']
+    return jsonify({'count': cnt})
+
+
+# ─────────────────────────────────────────────
+#  ROUTES — AJAX API (Notes Search)
+# ─────────────────────────────────────────────
+
+@app.route('/api/notes')
+def api_notes():
+    """AJAX endpoint — return notes as JSON for live search/filter/pagination."""
+    q       = sanitize(request.args.get('q', ''))
+    subject = sanitize(request.args.get('subject', ''))
+    sort    = request.args.get('sort', 'recent')
+    page    = max(1, int(request.args.get('page', 1)))
+
+    base_sql = ("SELECT n.*, u.name as author_name, "
+                "(SELECT COALESCE(AVG(stars),0) FROM ratings WHERE note_id=n.id) as avg_rating, "
+                "(SELECT COUNT(*) FROM ratings WHERE note_id=n.id) as rating_count, "
+                "(SELECT COUNT(*) FROM comments WHERE note_id=n.id AND is_deleted=0) as comment_count "
+                "FROM notes n JOIN users u ON n.user_id=u.id "
+                "WHERE n.is_deleted=0 ")
+    args = []
+
+    if q:
+        base_sql += "AND (n.title LIKE ? OR n.description LIKE ? OR n.tags LIKE ? OR u.name LIKE ?) "
+        like = f'%{q}%'
+        args += [like, like, like, like]
+    if subject:
+        base_sql += "AND n.subject=? "
+        args.append(subject)
+
+    sort_map = {
+        'recent':  'n.created_at DESC',
+        'popular': 'n.likes DESC',
+        'rating':  'avg_rating DESC',
+        'views':   'n.views DESC',
+    }
+    base_sql += f"ORDER BY {sort_map.get(sort,'n.created_at DESC')} "
+
+    count_sql = base_sql.replace(
+        "SELECT n.*, u.name as author_name, "
+        "(SELECT COALESCE(AVG(stars),0) FROM ratings WHERE note_id=n.id) as avg_rating, "
+        "(SELECT COUNT(*) FROM ratings WHERE note_id=n.id) as rating_count, "
+        "(SELECT COUNT(*) FROM comments WHERE note_id=n.id AND is_deleted=0) as comment_count ",
+        "SELECT COUNT(*) as c "
+    ).split("ORDER BY")[0]
+    total = get_db().execute(count_sql, args).fetchone()['c']
+    total_pages = max(1, math.ceil(total / PER_PAGE))
+    page = min(page, total_pages)
+
+    base_sql += f"LIMIT {PER_PAGE} OFFSET {(page-1)*PER_PAGE}"
+    rows = query(base_sql, args)
+
+    liked_ids = set()
+    if 'user_id' in session:
+        lk = query("SELECT note_id FROM likes WHERE user_id=?", (session['user_id'],))
+        liked_ids = {r['note_id'] for r in lk}
+
+    notes_list = []
+    for n in rows:
+        notes_list.append({
+            'id': n['id'],
+            'title': n['title'],
+            'description': n['description'] or 'No description available.',
+            'subject': n['subject'] or '',
+            'tags': n['tags'] or '',
+            'file_type': n['file_type'] or 'txt',
+            'views': n['views'],
+            'likes': n['likes'],
+            'downloads': n['downloads'],
+            'avg_rating': round(float(n['avg_rating']), 1),
+            'author_name': n['author_name'],
+            'filename': n['filename'],
+            'liked': n['id'] in liked_ids,
+        })
+
+    return jsonify({
+        'notes': notes_list,
+        'page': page,
+        'total_pages': total_pages,
+        'total': total
+    })
 
 
 # ─────────────────────────────────────────────

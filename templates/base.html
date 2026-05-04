@@ -1467,7 +1467,113 @@
   {% endif %}
 
 
+  <!-- AJAX Toast Notification CSS -->
+  <style>
+    .ajax-toast-wrap{position:fixed;bottom:30px;right:30px;z-index:10000;display:flex;flex-direction:column-reverse;gap:10px;pointer-events:none}
+    .ajax-toast{pointer-events:all;background:var(--clr-fg);border:1px solid var(--clr-border);border-radius:12px;padding:14px 20px;display:flex;align-items:center;gap:10px;font-size:14px;box-shadow:0 12px 40px rgba(0,0,0,.12);animation:toastIn .4s cubic-bezier(.18,.89,.32,1.28);min-width:280px;max-width:420px;backdrop-filter:blur(10px)}
+    .ajax-toast.success{border-left:4px solid var(--clr-success)}.ajax-toast.error{border-left:4px solid var(--clr-danger)}.ajax-toast.info{border-left:4px solid var(--clr-primary)}
+    .ajax-toast.removing{animation:toastOut .3s ease forwards}
+    @keyframes toastIn{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}
+    @keyframes toastOut{from{transform:translateX(0);opacity:1}to{transform:translateX(120%);opacity:0}}
+    .ajax-toast .toast-close{margin-left:auto;background:none;border:none;color:var(--clr-text-soft);cursor:pointer;opacity:.5;font-size:16px;padding:0 4px;transition:opacity .2s}.ajax-toast .toast-close:hover{opacity:1}
+    .ajax-spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--clr-border);border-top-color:var(--clr-primary);border-radius:50%;animation:spin .6s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .btn.ajax-loading{position:relative;pointer-events:none;opacity:.7}
+    .btn.ajax-loading::after{content:'';position:absolute;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite}
+  </style>
+
   <script>
+    /* ═══════════════════════════════════════════
+       StudyNotes AJAX Utility Library
+       ═══════════════════════════════════════════ */
+    const SN = {
+      /** Core AJAX helper — wraps fetch with common options */
+      async ajax(url, opts = {}) {
+        const defaults = {
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json',
+          }
+        };
+        if (opts.json) {
+          defaults.headers['Content-Type'] = 'application/json';
+          defaults.body = JSON.stringify(opts.json);
+          defaults.method = 'POST';
+          delete opts.json;
+        }
+        const config = { ...defaults, ...opts, headers: { ...defaults.headers, ...(opts.headers || {}) } };
+        try {
+          const res = await fetch(url, config);
+          const data = await res.json();
+          if (!res.ok) throw { status: res.status, ...data };
+          return data;
+        } catch (err) {
+          if (err.error) throw err;
+          throw { error: 'Network error. Please try again.' };
+        }
+      },
+
+      /** POST shorthand */
+      post(url, body) {
+        return this.ajax(url, { method: 'POST', json: body || {} });
+      },
+
+      /** GET shorthand */
+      get(url) {
+        return this.ajax(url);
+      },
+
+      /** Show a toast notification (replaces flash for AJAX flows) */
+      showToast(message, type = 'success', duration = 3500) {
+        let wrap = document.querySelector('.ajax-toast-wrap');
+        if (!wrap) {
+          wrap = document.createElement('div');
+          wrap.className = 'ajax-toast-wrap';
+          document.body.appendChild(wrap);
+        }
+        const icons = { success: '✅', error: '❌', info: 'ℹ️', warning: '⚠️' };
+        const toast = document.createElement('div');
+        toast.className = `ajax-toast ${type}`;
+        toast.innerHTML = `<span>${icons[type] || 'ℹ️'}</span><span>${message}</span><button class="toast-close" onclick="this.parentElement.classList.add('removing');setTimeout(()=>this.parentElement.remove(),300)">✕</button>`;
+        wrap.appendChild(toast);
+        setTimeout(() => {
+          toast.classList.add('removing');
+          setTimeout(() => toast.remove(), 300);
+        }, duration);
+      },
+
+      /** Add loading state to a button */
+      btnLoading(btn, loading = true) {
+        if (loading) {
+          btn._origHTML = btn.innerHTML;
+          btn.classList.add('ajax-loading');
+          btn.disabled = true;
+        } else {
+          btn.classList.remove('ajax-loading');
+          btn.disabled = false;
+          if (btn._origHTML) btn.innerHTML = btn._origHTML;
+        }
+      },
+
+      /** Live notification badge polling */
+      startNotifPolling(interval = 30000) {
+        const poll = async () => {
+          try {
+            const data = await this.get('/api/notifications/count');
+            document.querySelectorAll('.bdg, .n-badge').forEach(el => {
+              if (data.count > 0) {
+                el.textContent = data.count;
+                el.style.display = 'flex';
+              } else {
+                el.style.display = 'none';
+              }
+            });
+          } catch (e) { /* silent */ }
+        };
+        setInterval(poll, interval);
+      }
+    };
+
     /* Sidebar toggle functionality */
     function toggleSidebar() {
       const sidebar = document.getElementById('sidebar');
@@ -1535,7 +1641,11 @@
     }
 
     // Initialize theme when page loads
-    document.addEventListener('DOMContentLoaded', initializeTheme);
+    document.addEventListener('DOMContentLoaded', function() {
+      initializeTheme();
+      // Start notification polling for logged-in users
+      {% if current_user %}SN.startNotifPolling();{% endif %}
+    });
 
     {% block scripts %} {% endblock %}
   </script>
